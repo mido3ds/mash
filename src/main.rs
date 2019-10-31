@@ -1,7 +1,12 @@
+use signal_hook::{iterator::Signals, SIGINT};
 use std::env::set_current_dir;
 use std::io::{stdin, stdout, BufRead, Write};
 use std::path::Path;
 use std::process::Command;
+use std::sync::Mutex;
+use std::thread;
+#[macro_use]
+extern crate lazy_static;
 
 fn print_prompt() {
     print!("$ ");
@@ -38,26 +43,47 @@ fn exec_program(program: &str, args: &[&str]) -> u8 {
     }
 }
 
+lazy_static! {
+    static ref LAST_EXIT_CODE: Mutex<u8> = Mutex::new(0u8);
+}
+
+fn set_signals() {
+    let signals = Signals::new(&[SIGINT]).unwrap();
+
+    thread::spawn(move || {
+        for _ in signals.forever() {
+            let mut exit_code = LAST_EXIT_CODE.lock().unwrap();
+            *exit_code = 130;
+            println!("");
+            print_prompt();
+        }
+    });
+}
+
 fn main() {
+    set_signals();
+
     let stdin = stdin();
     let mut lines_itr = stdin.lock().lines().map(|l| l.unwrap());
-
-    let mut last_exit_code: u8 = 0;
 
     loop {
         print_prompt();
 
         if let Some(line) = lines_itr.next() {
             let lines = line
-                .split(";")
+                .split(';')
                 .map(|l| l.split_whitespace().collect::<Vec<&str>>());
-
             for exec_line in lines {
+                if exec_line.len() != 0 {
+                    println!("{:?}", exec_line[0usize].chars().nth(0));
+                }
+
                 if let Some((program, args)) = exec_line.split_first() {
+                    let mut exit_code = LAST_EXIT_CODE.lock().unwrap();
                     if is_builtin(program) {
-                        last_exit_code = exec_builtin(program, args);
+                        *exit_code = exec_builtin(program, args);
                     } else {
-                        last_exit_code = exec_program(program, args);
+                        *exit_code = exec_program(program, args);
                     }
                 }
             }
