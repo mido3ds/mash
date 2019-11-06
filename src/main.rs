@@ -5,11 +5,17 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::Mutex;
 use std::thread;
+use termion::color;
 #[macro_use]
 extern crate lazy_static;
 
 fn print_prompt() {
     print!("$ ");
+    stdout().flush().unwrap();
+}
+
+fn print_prompt_failure() {
+    print!("{}$ {}", color::Fg(color::Red), color::Fg(color::Reset));
     stdout().flush().unwrap();
 }
 
@@ -67,7 +73,10 @@ fn main() {
     let mut lines_itr = stdin.lock().lines().map(|l| l.unwrap());
 
     loop {
-        print_prompt();
+        match *LAST_EXIT_CODE.lock().unwrap() {
+            0 | 130 =>  print_prompt(),
+            _ => print_prompt_failure(),
+        };
 
         if let Some(line) = lines_itr.next() {
             let lines = line
@@ -85,6 +94,7 @@ fn main() {
                     } else {
                         *exit_code = exec_program(program, args);
                     }
+                    
                 }
             }
         } else {
