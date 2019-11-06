@@ -5,12 +5,23 @@ use std::path::Path;
 use std::process::Command;
 use std::sync::Mutex;
 use std::thread;
+use termion::color;
 #[macro_use]
 extern crate lazy_static;
 
-fn print_prompt() {
-    print!("$ ");
-    stdout().flush().unwrap();
+lazy_static! {
+    static ref LAST_EXIT_CODE: Mutex<u8> = Mutex::new(0u8);
+}
+
+fn print_prompt(exit_code: &u8) {
+    if *exit_code == 0u8 {
+        stdout().lock().write(b"$ ").unwrap();
+    } else {
+        stdout()
+            .lock()
+            .write(format!("{}$ {}", color::Fg(color::Red), color::Fg(color::Reset)).as_ref())
+            .unwrap();
+    }
 }
 
 fn is_builtin(program: &str) -> bool {
@@ -43,10 +54,6 @@ fn exec_program(program: &str, args: &[&str]) -> u8 {
     }
 }
 
-lazy_static! {
-    static ref LAST_EXIT_CODE: Mutex<u8> = Mutex::new(0u8);
-}
-
 fn set_signals() {
     let signals = Signals::new(&[SIGINT]).unwrap();
 
@@ -54,20 +61,21 @@ fn set_signals() {
         for _ in signals.forever() {
             let mut exit_code = LAST_EXIT_CODE.lock().unwrap();
             *exit_code = 130;
-            println!("");
-            print_prompt();
+
+            print_prompt(&*exit_code);
         }
     });
 }
 
 fn main() {
-    set_signals();
+    // set_signals();
 
     let stdin = stdin();
     let mut lines_itr = stdin.lock().lines().map(|l| l.unwrap());
 
     loop {
-        print_prompt();
+        let exit_code = LAST_EXIT_CODE.lock().unwrap();
+        print_prompt(&*exit_code);
 
         if let Some(line) = lines_itr.next() {
             let lines = line
