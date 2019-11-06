@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 use signal_hook::{iterator::Signals, SIGINT};
 use std::env::set_current_dir;
 use std::io::{stdin, stdout, BufRead, Write};
@@ -6,8 +9,9 @@ use std::process::Command;
 use std::sync::Mutex;
 use std::thread;
 use termion::color;
-#[macro_use]
-extern crate lazy_static;
+
+mod parser;
+use parser::*;
 
 fn print_prompt() {
     print!("$ ");
