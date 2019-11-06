@@ -74,7 +74,7 @@ fn main() {
 
     loop {
         match *LAST_EXIT_CODE.lock().unwrap() {
-            0 | 130 =>  print_prompt(),
+            0 | 130 => print_prompt(),
             _ => print_prompt_failure(),
         };
 
@@ -94,7 +94,6 @@ fn main() {
                     } else {
                         *exit_code = exec_program(program, args);
                     }
-                    
                 }
             }
         } else {

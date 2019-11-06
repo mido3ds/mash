@@ -3,214 +3,219 @@ Mahmoud Adas Shell, a bash-like shell for unix in rust
 
 # Grammar
 ```
+/* -------------------------------------------------------
+   The grammar symbols
+   ------------------------------------------------------- */
 WORD            = ALPHA
-                / WORD ALPHA
-                / WORD "_"
-ASSIGNMENTWORD = WORD "=" WORD
-NAME           = WORD
-NEWLINE        = LF
-IONUMBER       = DIGIT
-
-; The following are the operators mentioned above.
-
-ANDIF    = "&&"
-ORIF     = "||"
-DSEMI    = ";;"
-
-DLESS     = "<<"
-DGREAT    = ">>"
-LESSAND   = "<&"
-GREATAND  = ">&"
-LESSGREAT = "<>"
-DLESSDASH = "<<-"
-
-CLOBBER   = ">|"
-
-; The following are the reserved words.
-
-If   = %s" if "
-Then = %s" then "
-Else = %s" else "
-Elif = %s" elif "
-Fi   = %s" fi"
-Do   = %s" do "
-Done = %s" done "
-
-Case  = %s" case "
-Esac  = %s" esac "
-While = %s" while "
-Until = %s" until "
-For   = %s" for "
-
-; These are reserved words, not operator tokens, and are
-;  recognized when reserved words are recognized.
+                | WORD ALPHA
+                | WORD '_'
+ASSIGNMENT_WORD = WORD '=' WORD
+NAME            = WORD
+NEWLINE         = LF
+IO_NUMBER       = DIGIT
 
 
-Lbrace = "{"
-Rbrace = "}"
-Bang   = "!"
+/* The following are the operators (see XBD Operator)
+   containing more than one character. */
 
-In = %s" in "
 
-program          = linebreak completecommands linebreak
-                 / linebreak
+OR_IF = '||'
+AND_IF         = '&&'           
+DSEMI = ';;'
+DLESSDASH = '<<-'
+LESSGREAT   = '<>'  
+GREATAND   = '>&'           
+LESSAND   = '<&'     
+DGREAT   = '>>'    
+DLESS   = '<<'   
+CLOBBER = '>|'
 
-completecommands = completecommands newlinelist completecommand
-                 / completecommand
 
-completecommand  = list separatorop
-                 / list
+/* The following are the reserved words. */
 
-list             = list separatorop andor
-                 /                  andor
+DO    = 'do'  
+DONE = 'done'
+IF     = 'if'  
+THEN     = 'then'  
+ELSE     = 'else'  
+ELIF     = 'elif'
+FI     = 'fi' 
+CASE = 'case'    
+ESAC = 'esac'
+WHILE = 'while'
+UNTIL =  'until'   
+FOR = 'for'
 
-andor            =                       pipeline
-                 / andor ANDIF linebreak pipeline
-                 / andor ORIF  linebreak pipeline
 
-pipeline         =      pipesequence
-                 / Bang pipesequence
+/* These are reserved words, not operator tokens, and are
+   recognized when reserved words are recognized. */
+RBRACE    = '}'   
+LBRACE    = '{'       
+BANG = '!'
+IN = 'in'
 
-pipesequence     =                            command
-                 / pipesequence "|" linebreak command
 
-command          = simplecommand
-                 / compoundcommand
-                 / compoundcommand redirectlist
-                 / functiondefinition
-
-compoundcommand  = bracegroup
-                 / subshell
-                 / forclause
-                 / caseclause
-                 / ifclause
-                 / whileclause
-                 / untilclause
-
-subshell         = "(" compoundlist ")"
-
-compoundlist     = linebreak term
-                 / linebreak term separator
-
-term             = term separator andor
-                 /                andor
-
-forclause        = For name                                     dogroup
-                 / For name                       sequentialsep dogroup
-                 / For name linebreak in          sequentialsep dogroup
-                 / For name linebreak in wordlist sequentialsep dogroup
-
-;name             = NAME                     ;/* Apply rule 5 */
-
-;in               = In                       ;/* Apply rule 6 */
-
-wordlist         = wordlist WORD
-                 /          WORD
-
-caseclause       = Case WORD linebreak in linebreak caselist   Esac
-                 / Case WORD linebreak in linebreak caselistns Esac
-                 / Case WORD linebreak in linebreak            Esac
+/* -------------------------------------------------------
+   The Grammar
+   ------------------------------------------------------- */
+%start program
+%%
+program          : linebreak complete_commands linebreak
+                 | linebreak
                  ;
-caselistns       = caselist caseitemns
-                 /          caseitemns
-
-caselist         = caselist caseitem
-                 /          caseitem
-
-caseitemns       =     pattern ")"              linebreak
-                 /     pattern ")" compoundlist
-                 / "(" pattern ")"              linebreak
-                 / "(" pattern ")" compoundlist
-
-caseitem         =     pattern ")" linebreak    DSEMI linebreak
-                 /     pattern ")" compoundlist DSEMI linebreak
-                 / "(" pattern ")" linebreak    DSEMI linebreak
-                 / "(" pattern ")" compoundlist DSEMI linebreak
-
-pattern          =             WORD         ;/* Apply rule 4 */
-                 / pattern "|" WORD         ;/* Do not apply rule 4 */
-
-ifclause         = If compoundlist Then compoundlist elsepart Fi
-                 / If compoundlist Then compoundlist          Fi
-
-elsepart         = Elif compoundlist Then compoundlist
-                 / Elif compoundlist Then compoundlist elsepart
-                 / Else compoundlist
-
-whileclause      = While compoundlist dogroup
-
-untilclause      = Until compoundlist dogroup
-
-functiondefinition = fname "(" ")" linebreak functionbody
-
-functionbody     = compoundcommand               ;/* Apply rule 9 */
-                 / compoundcommand redirectlist  ;/* Apply rule 9 */
-
-fname            = NAME                            ;/* Apply rule 8 */
-
-bracegroup       = Lbrace compoundlist Rbrace
-
-dogroup          = Do compoundlist Done           ;/* Apply rule 6 */
-
-simplecommand    = cmdprefix cmdword cmdsuffix
-                 / cmdprefix cmdword
-                 / cmdprefix
-                 / cmdname cmdsuffix
-                 / cmdname
-
-cmdname          = WORD                   ;/* Apply rule 7a */
-
-cmdword          = WORD                   ;/* Apply rule 7b */
-
-cmdprefix        =           ioredirect
-                 / cmdprefix ioredirect
-                 /           ASSIGNMENTWORD
-                 / cmdprefix ASSIGNMENTWORD
-
-cmdsuffix        =           ioredirect
-                 / cmdsuffix ioredirect
-                 /           WORD
-                 / cmdsuffix WORD
-
-redirectlist     =              ioredirect
-                 / redirectlist ioredirect
-
-ioredirect       =          iofile
-                 / IONUMBER iofile
-                 /          iohere
-                 / IONUMBER iohere
-
-iofile           = "<"       filename
-                 / LESSAND   filename
-                 / ">"       filename
-                 / GREATAND  filename
-                 / DGREAT    filename
-                 / LESSGREAT filename
-                 / CLOBBER   filename
-
-filename         = WORD                      ;/* Apply rule 2 */
-
-;iohere           = DLESS     hereend
-;                 / DLESSDASH hereend
-
-iohere           = DLESS     hereend *(*ALPHA / NEWLINE) NEWLINE hereend NEWLINE
-                 / DLESSDASH hereend *(*ALPHA / NEWLINE) NEWLINE hereend NEWLINE
-
-;hereend          = WORD                      ;/* Apply rule 3 */
-hereend          = %s"EOF"
-
-newlinelist      =             NEWLINE
-                 / newlinelist NEWLINE
-
-linebreak        = newlinelist
-                 / ""            ; empty
-
-separatorop      = "&"
-                 / ";"
-
-separator        = separatorop linebreak
-                 / newlinelist
-
-sequentialsep    = ";" linebreak
-                 / newlinelist
+complete_commands: complete_commands newline_list complete_command
+                 |                                complete_command
+                 ;
+complete_command : list separator_op
+                 | list
+                 ;
+list             : list separator_op and_or
+                 |                   and_or
+                 ;
+and_or           :                         pipeline
+                 | and_or AND_IF linebreak pipeline
+                 | and_or OR_IF  linebreak pipeline
+                 ;
+pipeline         :      pipe_sequence
+                 | BANG pipe_sequence
+                 ;
+pipe_sequence    :                             command
+                 | pipe_sequence '|' linebreak command
+                 ;
+command          : simple_command
+                 | compound_command
+                 | compound_command redirect_list
+                 | function_definition
+                 ;
+compound_command : brace_group
+                 | subshell
+                 | for_clause
+                 | case_clause
+                 | if_clause
+                 | while_clause
+                 | until_clause
+                 ;
+subshell         : '(' compound_list ')'
+                 ;
+compound_list    : linebreak term
+                 | linebreak term separator
+                 ;
+term             : term separator and_or
+                 |                and_or
+                 ;
+for_clause       : FOR name                                      do_group
+                 | FOR name                       sequential_sep do_group
+                 | FOR name linebreak in          sequential_sep do_group
+                 | FOR name linebreak in wordlist sequential_sep do_group
+                 ;
+name             : NAME                     /* Apply rule 5 */
+                 ;
+in               : IN                       /* Apply rule 6 */
+                 ;
+wordlist         : wordlist WORD
+                 |          WORD
+                 ;
+case_clause      : CASE WORD linebreak in linebreak case_list    ESAC
+                 | CASE WORD linebreak in linebreak case_list_ns ESAC
+                 | CASE WORD linebreak in linebreak              ESAC
+                 ;
+case_list_ns     : case_list case_item_ns
+                 |           case_item_ns
+                 ;
+case_list        : case_list case_item
+                 |           case_item
+                 ;
+case_item_ns     :     pattern ')' linebreak
+                 |     pattern ')' compound_list
+                 | '(' pattern ')' linebreak
+                 | '(' pattern ')' compound_list
+                 ;
+case_item        :     pattern ')' linebreak     DSEMI linebreak
+                 |     pattern ')' compound_list DSEMI linebreak
+                 | '(' pattern ')' linebreak     DSEMI linebreak
+                 | '(' pattern ')' compound_list DSEMI linebreak
+                 ;
+pattern          :             WORD         /* Apply rule 4 */
+                 | pattern '|' WORD         /* DO not apply rule 4 */
+                 ;
+if_clause        : IF compound_list THEN compound_list else_part FI
+                 | IF compound_list THEN compound_list           FI
+                 ;
+else_part        : ELIF compound_list THEN compound_list
+                 | ELIF compound_list THEN compound_list else_part
+                 | ELSE compound_list
+                 ;
+while_clause     : WHILE compound_list do_group
+                 ;
+until_clause     : UNTIL compound_list do_group
+                 ;
+function_definition : fname '(' ')' linebreak function_body
+                 ;
+function_body    : compound_command                /* Apply rule 9 */
+                 | compound_command redirect_list  /* Apply rule 9 */
+                 ;
+fname            : NAME                            /* Apply rule 8 */
+                 ;
+brace_group      : LBRACE compound_list RBRACE
+                 ;
+do_group         : DO compound_list DONE           /* Apply rule 6 */
+                 ;
+simple_command   : cmd_prefix cmd_word cmd_suffix
+                 | cmd_prefix cmd_word
+                 | cmd_prefix
+                 | cmd_name cmd_suffix
+                 | cmd_name
+                 ;
+cmd_name         : WORD                   /* Apply rule 7a */
+                 ;
+cmd_word         : WORD                   /* Apply rule 7b */
+                 ;
+cmd_prefix       :            io_redirect
+                 | cmd_prefix io_redirect
+                 |            ASSIGNMENT_WORD
+                 | cmd_prefix ASSIGNMENT_WORD
+                 ;
+cmd_suffix       :            io_redirect
+                 | cmd_suffix io_redirect
+                 |            WORD
+                 | cmd_suffix WORD
+                 ;
+redirect_list    :               io_redirect
+                 | redirect_list io_redirect
+                 ;
+io_redirect      :           io_file
+                 | IO_NUMBER io_file
+                 |           io_here
+                 | IO_NUMBER io_here
+                 ;
+io_file          : '<'       filename
+                 | LESSAND   filename
+                 | '>'       filename
+                 | GREATAND  filename
+                 | DGREAT    filename
+                 | LESSGREAT filename
+                 | CLOBBER   filename
+                 ;
+filename         : WORD                      /* Apply rule 2 */
+                 ;
+io_here          : DLESS     here_end
+                 | DLESSDASH here_end
+                 ;
+here_end         : WORD                      /* Apply rule 3 */
+                 ;
+newline_list     :              NEWLINE
+                 | newline_list NEWLINE
+                 ;
+linebreak        : newline_list
+                 | /* empty */
+                 ;
+separator_op     : '&'
+                 | ';'
+                 ;
+separator        : separator_op linebreak
+                 | newline_list
+                 ;
+sequential_sep   : ';' linebreak
+                 | newline_list
+                 ;
 ```
